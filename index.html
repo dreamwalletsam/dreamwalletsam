@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dream Wallet</title>
+<style>
+:root{--bg:#f9fafb;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--ok:#16a34a;--bad:#dc2626;--badge:#e0f2fe;--badget:#0369a1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111827;--card:#1f2937;--text:#f3f4f6;--muted:#9ca3af;--line:#374151;--badge:#0c4a6e;--badget:#bae6fd}}
+:root[data-theme="dark"]{--bg:#111827;--card:#1f2937;--text:#f3f4f6;--muted:#9ca3af;--line:#374151;--badge:#0c4a6e;--badget:#bae6fd}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
+.wrap{max-width:800px;margin:0 auto;padding:20px}
+.hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:28px;border-radius:12px;margin-bottom:20px}
+.hero p{margin:0;opacity:.8;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
+.hero h1{margin:10px 0 18px;font-size:40px}
+.addr{background:rgba(255,255,255,.15);padding:8px 14px;border-radius:6px;font-size:13px;display:inline-block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+h3{margin:0 0 14px;font-size:16px}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+input{width:100%;box-sizing:border-box;padding:10px;margin-bottom:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px}
+button{width:100%;padding:12px;color:#fff;border:0;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px}
+button:disabled{opacity:.6;cursor:wait}
+.tx{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;gap:10px}
+.hash{color:var(--muted);font-size:11px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{background:var(--badge);color:var(--badget);padding:2px 6px;border-radius:4px;font-size:10px}
+.note{font-size:12px;color:var(--muted);margin:16px 0 0;text-align:center}
+.err{color:var(--bad);font-size:12px;min-height:16px;margin:-4px 0 8px}
+select{width:100%;box-sizing:border-box;padding:10px;margin-bottom:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px}
+.hold{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.coin{border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer;font-size:12px}
+.coin.sel{border-color:#7c3aed;box-shadow:0 0 0 1px #7c3aed}
+.coin:focus-visible{outline:2px solid #7c3aed;outline-offset:2px}
+.coin b{font-size:14px;display:block}.coin span{color:var(--muted)}
+.dot{display:inline-block;width:18px;height:18px;border-radius:50%;margin-right:6px;vertical-align:middle;color:#fff;font-size:10px;line-height:18px;text-align:center}
+.avail{font-size:12px;color:var(--muted);margin:-6px 0 10px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.adminbadge{display:inline-block;background:#fbbf24;color:#78350f;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:8px;text-transform:uppercase;letter-spacing:.05em;vertical-align:middle}
+.adm{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.adm:last-child{border-bottom:0}
+.adm .role{font-size:10px;font-weight:700;color:#78350f;background:#fde68a;padding:2px 8px;border-radius:999px}
+.langsel{width:auto;margin:0;padding:6px 10px;font-size:12px;border-radius:6px}
+.tabs{display:flex;gap:4px;margin:0 0 16px;border-bottom:1px solid var(--line)}
+.tabs .tab{width:auto;flex:0 0 auto;padding:8px 16px;margin:0 0 -1px;background:transparent;color:var(--muted);border:0;border-bottom:2px solid transparent;border-radius:0;font-weight:600;font-size:13px}
+.tabs .tab.active{color:#4f46e5;border-bottom-color:#4f46e5}
+</style>
+</head>
+<body>
+<div class="sr-only" id="live" role="status" aria-live="polite"></div>
+
+<div class="wrap" id="gate" style="max-width:380px;padding-top:12vh">
+  <div class="card">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <select class="langsel" aria-label="Language">
+        <option value="en">English</option>
+        <option value="ar">العربية</option>
+        <option value="zh">中文</option>
+        <option value="id">Bahasa Indonesia</option>
+        <option value="ru">Русский</option>
+      </select>
+    </div>
+    <h3 style="font-size:24px;margin:0 0 4px;color:#4f46e5;letter-spacing:.02em">Dream Wallet</h3>
+    <p class="avail" data-i18n="welcome" style="margin:0 0 4px;font-weight:600;color:var(--text)">Welcome</p>
+    <p class="avail" data-i18n="gateNote" style="margin:0 0 16px">Demo gate: accounts live in this page's memory only and reset on refresh. Anyone can create an account.</p>
+    <label for="gu" data-i18n="username">Username</label>
+    <input id="gu" type="text" autocomplete="username" data-i18n-ph="usernamePh" placeholder="3-32 letters, numbers or _">
+    <label for="gp" data-i18n="password">Password (min 8 characters)</label>
+    <input id="gp" type="password" autocomplete="current-password" placeholder="••••••••">
+    <div class="err" id="ge" role="alert"></div>
+    <button id="gb" style="background:#4f46e5" data-i18n="signIn">Sign in</button>
+    <button id="gc" type="button" style="background:#16a34a;margin-top:10px" data-i18n="createAccount">Create account</button>
+    <p class="note" style="margin-top:12px"><span data-i18n="demoHint">Try the pre-made demo account:</span> <strong>Samy</strong> / <strong>123456789</strong></p>
+  </div>
+</div>
+<div class="wrap" id="app" hidden>
+  <div class="hero">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div>
+        <h2 style="margin:0;font-size:34px;font-weight:800;letter-spacing:.02em;line-height:1.1">Dream Wallet <span style="font-size:20px;font-weight:600;opacity:.75">(demo)</span></h2>
+        <p data-i18n="totalPortfolio" style="margin:10px 0 0">Total Portfolio Value</p>
+      </div>
+      <select class="langsel" aria-label="Language">
+        <option value="en">English</option>
+        <option value="ar">العربية</option>
+        <option value="zh">中文</option>
+        <option value="id">Bahasa Indonesia</option>
+        <option value="ru">Русский</option>
+      </select>
+    </div>
+    <h1 id="bal" aria-live="polite">$0.00</h1>
+    <div style="margin-top:14px;font-size:13px"><span data-i18n="signedInAs">Signed in as</span> <strong id="who"></strong><span id="roleBadge" hidden class="adminbadge" data-i18n="adminBadge">Admin</span> · <a href="#" id="out" style="color:#fff" data-i18n="signOut">Sign out</a> <button id="wd" type="button" style="width:auto;padding:4px 12px;margin-left:10px;background:rgba(255,255,255,.25);font-size:12px" data-i18n="withdraw">Withdraw</button></div>
+  </div>
+  <div class="card" id="adminp" hidden style="margin-bottom:20px">
+    <h3 data-i18n="adminPanel">Admin Panel</h3>
+    <div class="avail" data-i18n="adminNote" style="margin-top:0">Visible to admins only. Demo accounts live in memory and reset on refresh.</div>
+    <div id="admList"></div>
+  </div>
+  <div class="card" id="wdp" hidden style="margin-bottom:20px">
+    <h3 data-i18n="withdraw">Withdraw</h3>
+    <div class="tabs" role="tablist">
+      <button class="tab active" id="tabCrypto" type="button" role="tab" data-i18n="tabCrypto">Crypto</button>
+      <button class="tab" id="tabBank" type="button" role="tab" data-i18n="tabBank">Bank</button>
+    </div>
+    <div id="wCrypto">
+      <label for="wc" data-i18n="coin">Coin</label>
+      <select id="wc"></select>
+      <div class="avail" id="wh"></div>
+      <label for="wa" data-i18n="destAddress">Destination address</label>
+      <input id="wa" type="text" data-i18n-ph="destAddressPh" placeholder="Paste the receiving address" autocomplete="off">
+      <label for="wm"><span data-i18n="amount">Amount</span> (<span id="ws"></span>)</label>
+      <input id="wm" type="number" step="any" min="0" inputmode="decimal" placeholder="0.00">
+      <div class="avail" id="wt"></div>
+      <div class="err" id="we" role="alert"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button id="wb" type="button" style="background:#2563eb" data-i18n="withdrawBtn">Withdraw</button>
+        <button id="wx" type="button" style="background:#6b7280" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+    <div id="wBank" hidden>
+      <label for="bCountry" data-i18n="country">Country</label>
+      <select id="bCountry"></select>
+      <label for="bHolder" data-i18n="accountHolder">Account holder name</label>
+      <input id="bHolder" type="text" autocomplete="name">
+      <label for="bBank" data-i18n="bankName">Bank name</label>
+      <input id="bBank" type="text">
+      <label for="bAcct"><span id="bAcctLabel" data-i18n="accountNumber">Account number</span></label>
+      <input id="bAcct" type="text" autocomplete="off" placeholder="0123456789">
+      <label for="bSwift" data-i18n="swift">SWIFT / BIC code</label>
+      <input id="bSwift" type="text" maxlength="11" autocomplete="off" placeholder="ABCDUS33XXX" style="text-transform:uppercase">
+      <label for="bAmt"><span data-i18n="amount">Amount</span> (USD)</label>
+      <input id="bAmt" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+      <div class="avail" id="bHint"></div>
+      <div class="avail" data-i18n="bankNote" style="margin-top:-4px">Demo only: nothing is sent. Bank details are not stored.</div>
+      <div class="err" id="be" role="alert"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button id="bb" type="button" style="background:#2563eb" data-i18n="withdrawBtn">Withdraw</button>
+        <button id="bx" type="button" style="background:#6b7280" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:20px">
+    <h3 data-i18n="yourAssets">Your Assets</h3>
+    <div class="hold" id="hold"></div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h3 data-i18n="cardDeposit">1. Card Deposit (On-Ramp)</h3>
+      <label for="dep" data-i18n="depositAmount">Deposit Amount (USD)</label>
+      <input id="dep" type="number" step="0.01" min="0.5" inputmode="decimal" placeholder="0.00">
+      <label for="cn" data-i18n="cardNumber">Card Number</label>
+      <input id="cn" type="text" inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="4242 4242 4242 4242">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label for="ex" data-i18n="expiry">Expiry (MM/YY)</label>
+        <input id="ex" type="text" inputmode="numeric" autocomplete="cc-exp" maxlength="5" placeholder="MM/YY"></div>
+        <div><label for="cv" data-i18n="cvv">CVV</label>
+        <input id="cv" type="password" inputmode="numeric" autocomplete="cc-csc" maxlength="4" placeholder="123"></div>
+      </div>
+      <div class="avail" data-i18n="cardNote" style="margin-top:-4px">Demo only: nothing is sent or stored. Try 4242 4242 4242 4242, any future date, any CVV.</div>
+      <div class="err" id="e1" role="alert"></div>
+      <button id="b1" style="background:#2563eb" data-i18n="loadFunds">Load Funds</button>
+    </div>
+    <div class="card">
+      <h3 data-i18n="p2pTransfer">2. P2P Transfer</h3>
+      <label for="coin" data-i18n="coin">Coin</label>
+      <select id="coin"></select>
+      <div class="avail" id="avail"></div>
+      <label for="to" data-i18n="recipient">Recipient Wallet Address</label>
+      <input id="to" type="text" placeholder="0x...">
+      <label for="amt"><span data-i18n="amount">Amount</span> (<span id="sym"></span>)</label>
+      <input id="amt" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0.00">
+      <div class="err" id="e2" role="alert"></div>
+      <button id="b2" style="background:#16a34a" data-i18n="sendTransfer">Send Transfer</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:20px">
+    <h3 data-i18n="ledgerHistory">Ledger History</h3>
+    <div id="log"><p style="color:var(--muted);font-size:14px;margin:0" data-i18n="noTx">No transactions yet.</p></div>
+  </div>
+  <p class="note" data-i18n="footer">Preview only.</p>
+  <p class="note" style="margin-top:8px"><strong>Created by SAMY</strong><br><a href="tel:+601128741887" style="color:inherit;text-decoration:none">+60 11-2874 1887</a></p>
+
+</div>
+<script>
+/* ---------- language ---------- */
+const T = {
+en:{
+  welcome:'Welcome',
+  gateNote:"Demo gate: accounts live in this page's memory only and reset on refresh. Anyone can create an account.",
+  username:'Username', usernamePh:'3-32 letters, numbers or _',
+  password:'Password (min 8 characters)',
+  signIn:'Sign in', createAccount:'Create account', creating:'Creating…',
+  demoHint:'Try the pre-made demo account:',
+  errNoCrypto:'This demo needs Web Crypto (crypto.subtle). Serve the file from a local web server or an https:// page.',
+  errUserRule:'Username: 3-32 letters, numbers or _',
+  errPassLen:'Password must be at least 8 characters.',
+  errUserTaken:'Username already taken.',
+  errInvalid:'Invalid username or password.',
+  errTooMany:'Too many attempts. Refresh the page to reset the demo.',
+  adminBadge:'Admin', roleAdmin:'Admin',
+  totalPortfolio:'Total Portfolio Value', signedInAs:'Signed in as', signOut:'Sign out',
+  withdraw:'Withdraw',
+  adminPanel:'Admin Panel',
+  adminNote:'Visible to admins only. Demo accounts live in memory and reset on refresh.',
+  coin:'Coin', available:'Available', destAddress:'Destination address',
+  destAddressPh:'Paste the receiving address', amount:'Amount',
+  withdrawBtn:'Withdraw', cancel:'Cancel', submitting:'Submitting…',
+  minFee:'Minimum withdrawal {min} {sym}. Network fee {fee} {sym}, deducted from your balance (amount + fee).',
+  errAddress:'Enter a valid {sym} address.',
+  errBtcAddress:'That is not a valid Bitcoin address.',
+  errAmount:'Enter an amount.',
+  errBelowMin:'Below the minimum withdrawal of {min} {sym}.',
+  errInsufficient:'Insufficient {sym} balance. You need {total} (amount + fee) and have {have}.',
+  yourAssets:'Your Assets',
+  cardDeposit:'1. Card Deposit (On-Ramp)', depositAmount:'Deposit Amount (USD)',
+  cardNumber:'Card Number', expiry:'Expiry (MM/YY)', cvv:'CVV',
+  cardNote:'Demo only: nothing is sent or stored. Try 4242 4242 4242 4242, any future date, any CVV.',
+  loadFunds:'Load Funds', processing:'Processing…',
+  errPosAmount:'Enter a positive amount.', errCardInvalid:'Card number is invalid.',
+  errExpiry:'Expiry must be MM/YY.', errExpired:'Card has expired.',
+  errCvv:'CVV must be 3 or 4 digits.',
+  p2pTransfer:'2. P2P Transfer', recipient:'Recipient Wallet Address',
+  sendTransfer:'Send Transfer', routing:'Routing…',
+  errAddrAmt:'Enter an address and a positive amount.',
+  errInsuffBal:'Insufficient {sym} balance.',
+  ledgerHistory:'Ledger History', noTx:'No transactions yet.', settled:'Settled',
+  txCardDeposit:'Card Deposit', txP2P:'P2P Transfer', txWithdrawal:'Withdrawal', fee:'fee',
+  tabCrypto:'Crypto', tabBank:'Bank',
+  country:'Country', selectCountry:'Select country…',
+  accountHolder:'Account holder name', bankName:'Bank name',
+  accountNumber:'Account number', iban:'IBAN', swift:'SWIFT / BIC code',
+  bankMin:'Minimum bank withdrawal {min} USD. Processing fee {fee} USD, deducted from your USD balance.',
+  bankNote:'Demo only: nothing is sent. Bank details are not stored.',
+  errCountry:'Select a country.',
+  errHolder:'Enter the account holder name.',
+  errBankName:'Enter the bank name.',
+  errAccount:'Enter a valid account number (8–34 digits).',
+  errIban:'Enter a valid IBAN (15–34 characters).',
+  errSwift:'Enter a valid SWIFT/BIC (8 or 11 characters).',
+  errBankAmount:'Enter a positive amount.',
+  errBankBelowMin:'Below the minimum bank withdrawal of {min} USD.',
+  errBankInsufficient:'Insufficient USD balance. You need {total} (amount + fee) and have {have}.',
+  txBankWithdrawal:'Bank Withdrawal',
+  footer:'Preview only: the server calls (Stripe + ledger) are simulated in this page. Demo only: no real funds move. Prices for 13 coins are from Crypto.com Exchange, captured Oct 2, 2026 02:51 UTC (a snapshot, not auto-refreshing). * = not on that feed: BNB and TRX are from an earlier public snapshot, TON is a sample value. Balances are sample values.'
+},
+ar:{
+  welcome:'مرحباً',
+  gateNote:'بوابة تجريبية: الحسابات موجودة في ذاكرة هذه الصفحة فقط وتُعاد عند التحديث. يمكن لأي شخص إنشاء حساب.',
+  username:'اسم المستخدم', usernamePh:'3-32 حرفاً أو رقماً أو _',
+  password:'كلمة المرور (8 أحرف على الأقل)',
+  signIn:'تسجيل الدخول', createAccount:'إنشاء حساب', creating:'جارٍ الإنشاء…',
+  demoHint:'جرّب الحساب التجريبي الجاهز:',
+  errNoCrypto:'يتطلب هذا العرض Web Crypto (crypto.subtle). قدّم الملف من خادم ويب محلي أو صفحة https://.',
+  errUserRule:'اسم المستخدم: 3-32 حرفاً أو رقماً أو _',
+  errPassLen:'يجب أن تكون كلمة المرور 8 أحرف على الأقل.',
+  errUserTaken:'اسم المستخدم مستخدم بالفعل.',
+  errInvalid:'اسم المستخدم أو كلمة المرور غير صحيحة.',
+  errTooMany:'محاولات كثيرة. حدّث الصفحة لإعادة تعيين العرض.',
+  adminBadge:'مشرف', roleAdmin:'مشرف',
+  totalPortfolio:'إجمالي قيمة المحفظة', signedInAs:'مسجّل الدخول باسم', signOut:'تسجيل الخروج',
+  withdraw:'سحب',
+  adminPanel:'لوحة المشرف',
+  adminNote:'مرئية للمشرفين فقط. حسابات العرض في الذاكرة وتُعاد عند التحديث.',
+  coin:'العملة', available:'المتاح', destAddress:'عنوان الاستلام',
+  destAddressPh:'الصق عنوان الاستلام', amount:'المبلغ',
+  withdrawBtn:'سحب', cancel:'إلغاء', submitting:'جارٍ الإرسال…',
+  minFee:'الحد الأدنى للسحب {min} {sym}. رسوم الشبكة {fee} {sym}، تُخصم من رصيدك (المبلغ + الرسوم).',
+  errAddress:'أدخل عنوان {sym} صالحاً.',
+  errBtcAddress:'هذا ليس عنوان بيتكوين صالحاً.',
+  errAmount:'أدخل مبلغاً.',
+  errBelowMin:'أقل من الحد الأدنى للسحب {min} {sym}.',
+  errInsufficient:'رصيد {sym} غير كافٍ. تحتاج {total} (المبلغ + الرسوم) ولديك {have}.',
+  yourAssets:'أصولك',
+  cardDeposit:'1. إيداع بالبطاقة', depositAmount:'مبلغ الإيداع (دولار)',
+  cardNumber:'رقم البطاقة', expiry:'تاريخ الانتهاء (MM/YY)', cvv:'CVV',
+  cardNote:'للعرض فقط: لا يُرسل أو يُخزَّن شيء. جرّب 4242 4242 4242 4242، أي تاريخ مستقبلي، أي CVV.',
+  loadFunds:'تحميل الأموال', processing:'جارٍ المعالجة…',
+  errPosAmount:'أدخل مبلغاً موجباً.', errCardInvalid:'رقم البطاقة غير صالح.',
+  errExpiry:'يجب أن يكون التاريخ MM/YY.', errExpired:'البطاقة منتهية الصلاحية.',
+  errCvv:'يجب أن يكون CVV من 3 أو 4 أرقام.',
+  p2pTransfer:'2. تحويل نظير إلى نظير', recipient:'عنوان محفظة المستلم',
+  sendTransfer:'إرسال التحويل', routing:'جارٍ التوجيه…',
+  errAddrAmt:'أدخل عنواناً ومبلغاً موجباً.',
+  errInsuffBal:'رصيد {sym} غير كافٍ.',
+  ledgerHistory:'سجل المعاملات', noTx:'لا توجد معاملات بعد.', settled:'تمت التسوية',
+  txCardDeposit:'إيداع بالبطاقة', txP2P:'تحويل نظير إلى نظير', txWithdrawal:'سحب', fee:'رسوم',
+  tabCrypto:'عملات رقمية', tabBank:'بنك',
+  country:'الدولة', selectCountry:'اختر الدولة…',
+  accountHolder:'اسم صاحب الحساب', bankName:'اسم البنك',
+  accountNumber:'رقم الحساب', iban:'IBAN', swift:'رمز SWIFT / BIC',
+  bankMin:'الحد الأدنى للسحب البنكي {min} دولار. رسوم المعالجة {fee} دولار، تُخصم من رصيدك بالدولار.',
+  bankNote:'للعرض فقط: لا يُرسل شيء. لا تُخزَّن البيانات البنكية.',
+  errCountry:'اختر الدولة.',
+  errHolder:'أدخل اسم صاحب الحساب.',
+  errBankName:'أدخل اسم البنك.',
+  errAccount:'أدخل رقم حساب صالحاً (8–34 رقماً).',
+  errIban:'أدخل IBAN صالحاً (15–34 حرفاً).',
+  errSwift:'أدخل رمز SWIFT/BIC صالحاً (8 أو 11 حرفاً).',
+  errBankAmount:'أدخل مبلغاً موجباً.',
+  errBankBelowMin:'أقل من الحد الأدنى للسحب البنكي {min} دولار.',
+  errBankInsufficient:'رصيد الدولار غير كافٍ. تحتاج {total} (المبلغ + الرسوم) ولديك {have}.',
+  txBankWithdrawal:'سحب بنكي',
+  footer:'للعرض فقط: استدعاءات الخادم (Stripe + السجل) محاكاة في هذه الصفحة. للعرض فقط: لا تتحرك أموال حقيقية. الأسعار من Crypto.com Exchange بتاريخ 2 أكتوبر 2026 02:51 UTC (لقطة، لا تُحدَّث تلقائياً). * = ليس في ذلك المصدر: BNB وTRX من لقطة عامة سابقة، TON قيمة تجريبية. الأرصدة قيم تجريبية.'
+},
+zh:{
+  welcome:'欢迎',
+  gateNote:'演示登录：账户仅保存在本页面内存中，刷新后重置。任何人都可以创建账户。',
+  username:'用户名', usernamePh:'3-32 个字母、数字或 _',
+  password:'密码（至少 8 个字符）',
+  signIn:'登录', createAccount:'创建账户', creating:'正在创建…',
+  demoHint:'试用预置演示账户：',
+  errNoCrypto:'此演示需要 Web Crypto (crypto.subtle)。请从本地网络服务器或 https:// 页面打开该文件。',
+  errUserRule:'用户名：3-32 个字母、数字或 _',
+  errPassLen:'密码至少需要 8 个字符。',
+  errUserTaken:'用户名已被占用。',
+  errInvalid:'用户名或密码无效。',
+  errTooMany:'尝试次数过多。刷新页面以重置演示。',
+  adminBadge:'管理员', roleAdmin:'管理员',
+  totalPortfolio:'投资组合总价值', signedInAs:'登录身份', signOut:'退出登录',
+  withdraw:'提现',
+  adminPanel:'管理面板',
+  adminNote:'仅管理员可见。演示账户保存在内存中，刷新后重置。',
+  coin:'币种', available:'可用', destAddress:'收款地址',
+  destAddressPh:'粘贴收款地址', amount:'金额',
+  withdrawBtn:'提现', cancel:'取消', submitting:'正在提交…',
+  minFee:'最低提现 {min} {sym}。网络手续费 {fee} {sym}，从您的余额中扣除（金额 + 手续费）。',
+  errAddress:'请输入有效的 {sym} 地址。',
+  errBtcAddress:'这不是有效的比特币地址。',
+  errAmount:'请输入金额。',
+  errBelowMin:'低于最低提现额 {min} {sym}。',
+  errInsufficient:'{sym} 余额不足。您需要 {total}（金额 + 手续费），当前有 {have}。',
+  yourAssets:'您的资产',
+  cardDeposit:'1. 银行卡入金', depositAmount:'入金金额（美元）',
+  cardNumber:'卡号', expiry:'有效期 (MM/YY)', cvv:'CVV',
+  cardNote:'仅演示：不会发送或存储任何内容。试用 4242 4242 4242 4242，任意未来日期，任意 CVV。',
+  loadFunds:'充值', processing:'处理中…',
+  errPosAmount:'请输入正数金额。', errCardInvalid:'卡号无效。',
+  errExpiry:'有效期必须为 MM/YY。', errExpired:'卡已过期。',
+  errCvv:'CVV 必须为 3 或 4 位数字。',
+  p2pTransfer:'2. 点对点转账', recipient:'收款钱包地址',
+  sendTransfer:'发送转账', routing:'正在路由…',
+  errAddrAmt:'请输入地址和正数金额。',
+  errInsuffBal:'{sym} 余额不足。',
+  ledgerHistory:'账本历史', noTx:'暂无交易。', settled:'已结算',
+  txCardDeposit:'银行卡入金', txP2P:'点对点转账', txWithdrawal:'提现', fee:'手续费',
+  tabCrypto:'加密货币', tabBank:'银行',
+  country:'国家/地区', selectCountry:'选择国家/地区…',
+  accountHolder:'账户持有人姓名', bankName:'银行名称',
+  accountNumber:'账号', iban:'IBAN', swift:'SWIFT / BIC 代码',
+  bankMin:'最低银行提现 {min} 美元。手续费 {fee} 美元，从美元余额中扣除。',
+  bankNote:'仅演示：不会发送任何内容。不会存储银行信息。',
+  errCountry:'请选择国家/地区。',
+  errHolder:'请输入账户持有人姓名。',
+  errBankName:'请输入银行名称。',
+  errAccount:'请输入有效的账号（8–34 位数字）。',
+  errIban:'请输入有效的 IBAN（15–34 个字符）。',
+  errSwift:'请输入有效的 SWIFT/BIC（8 或 11 个字符）。',
+  errBankAmount:'请输入正数金额。',
+  errBankBelowMin:'低于最低银行提现额 {min} 美元。',
+  errBankInsufficient:'美元余额不足。您需要 {total}（金额 + 手续费），当前有 {have}。',
+  txBankWithdrawal:'银行提现',
+  footer:'仅供预览：服务器调用（Stripe + 账本）在本页面中模拟。仅演示：没有真实资金流动。13 种币的价格来自 Crypto.com Exchange，采集于 2026 年 10 月 2 日 02:51 UTC（快照，不自动刷新）。* = 不在该数据源中：BNB 和 TRX 来自更早的公开快照，TON 为示例值。余额为示例值。'
+},
+id:{
+  welcome:'Selamat datang',
+  gateNote:'Gerbang demo: akun hanya tersimpan di memori halaman ini dan direset saat refresh. Siapa pun bisa membuat akun.',
+  username:'Nama pengguna', usernamePh:'3-32 huruf, angka, atau _',
+  password:'Kata sandi (min 8 karakter)',
+  signIn:'Masuk', createAccount:'Buat akun', creating:'Membuat…',
+  demoHint:'Coba akun demo bawaan:',
+  errNoCrypto:'Demo ini memerlukan Web Crypto (crypto.subtle). Sajikan file dari server web lokal atau halaman https://.',
+  errUserRule:'Nama pengguna: 3-32 huruf, angka, atau _',
+  errPassLen:'Kata sandi minimal 8 karakter.',
+  errUserTaken:'Nama pengguna sudah dipakai.',
+  errInvalid:'Nama pengguna atau kata sandi salah.',
+  errTooMany:'Terlalu banyak percobaan. Muat ulang halaman untuk mereset demo.',
+  adminBadge:'Admin', roleAdmin:'Admin',
+  totalPortfolio:'Total Nilai Portofolio', signedInAs:'Masuk sebagai', signOut:'Keluar',
+  withdraw:'Tarik',
+  adminPanel:'Panel Admin',
+  adminNote:'Hanya terlihat oleh admin. Akun demo tersimpan di memori dan direset saat refresh.',
+  coin:'Koin', available:'Tersedia', destAddress:'Alamat tujuan',
+  destAddressPh:'Tempel alamat penerima', amount:'Jumlah',
+  withdrawBtn:'Tarik', cancel:'Batal', submitting:'Mengirim…',
+  minFee:'Penarikan minimum {min} {sym}. Biaya jaringan {fee} {sym}, dipotong dari saldo Anda (jumlah + biaya).',
+  errAddress:'Masukkan alamat {sym} yang valid.',
+  errBtcAddress:'Itu bukan alamat Bitcoin yang valid.',
+  errAmount:'Masukkan jumlah.',
+  errBelowMin:'Di bawah penarikan minimum {min} {sym}.',
+  errInsufficient:'Saldo {sym} tidak cukup. Anda perlu {total} (jumlah + biaya) dan memiliki {have}.',
+  yourAssets:'Aset Anda',
+  cardDeposit:'1. Deposit Kartu', depositAmount:'Jumlah Deposit (USD)',
+  cardNumber:'Nomor Kartu', expiry:'Kedaluwarsa (MM/YY)', cvv:'CVV',
+  cardNote:'Hanya demo: tidak ada yang dikirim atau disimpan. Coba 4242 4242 4242 4242, tanggal apa pun di masa depan, CVV apa pun.',
+  loadFunds:'Muat Dana', processing:'Memproses…',
+  errPosAmount:'Masukkan jumlah positif.', errCardInvalid:'Nomor kartu tidak valid.',
+  errExpiry:'Kedaluwarsa harus MM/YY.', errExpired:'Kartu sudah kedaluwarsa.',
+  errCvv:'CVV harus 3 atau 4 digit.',
+  p2pTransfer:'2. Transfer P2P', recipient:'Alamat Dompet Penerima',
+  sendTransfer:'Kirim Transfer', routing:'Mengarahkan…',
+  errAddrAmt:'Masukkan alamat dan jumlah positif.',
+  errInsuffBal:'Saldo {sym} tidak cukup.',
+  ledgerHistory:'Riwayat Buku Besar', noTx:'Belum ada transaksi.', settled:'Selesai',
+  txCardDeposit:'Deposit Kartu', txP2P:'Transfer P2P', txWithdrawal:'Penarikan', fee:'biaya',
+  tabCrypto:'Kripto', tabBank:'Bank',
+  country:'Negara', selectCountry:'Pilih negara…',
+  accountHolder:'Nama pemilik rekening', bankName:'Nama bank',
+  accountNumber:'Nomor rekening', iban:'IBAN', swift:'Kode SWIFT / BIC',
+  bankMin:'Penarikan bank minimum {min} USD. Biaya pemrosesan {fee} USD, dipotong dari saldo USD Anda.',
+  bankNote:'Hanya demo: tidak ada yang dikirim. Data bank tidak disimpan.',
+  errCountry:'Pilih negara.',
+  errHolder:'Masukkan nama pemilik rekening.',
+  errBankName:'Masukkan nama bank.',
+  errAccount:'Masukkan nomor rekening yang valid (8–34 digit).',
+  errIban:'Masukkan IBAN yang valid (15–34 karakter).',
+  errSwift:'Masukkan SWIFT/BIC yang valid (8 atau 11 karakter).',
+  errBankAmount:'Masukkan jumlah positif.',
+  errBankBelowMin:'Di bawah penarikan bank minimum {min} USD.',
+  errBankInsufficient:'Saldo USD tidak cukup. Anda perlu {total} (jumlah + biaya) dan memiliki {have}.',
+  txBankWithdrawal:'Penarikan Bank',
+  footer:'Hanya pratinjau: panggilan server (Stripe + buku besar) disimulasikan di halaman ini. Hanya demo: tidak ada dana nyata yang berpindah. Harga 13 koin dari Crypto.com Exchange, diambil 2 Okt 2026 02:51 UTC (snapshot, tidak diperbarui otomatis). * = tidak ada di feed itu: BNB dan TRX dari snapshot publik sebelumnya, TON nilai contoh. Saldo adalah nilai contoh.'
+},
+ru:{
+  welcome:'Добро пожаловать',
+  gateNote:'Демо-вход: аккаунты хранятся только в памяти этой страницы и сбрасываются при обновлении. Любой может создать аккаунт.',
+  username:'Имя пользователя', usernamePh:'3–32 буквы, цифры или _',
+  password:'Пароль (минимум 8 символов)',
+  signIn:'Войти', createAccount:'Создать аккаунт', creating:'Создание…',
+  demoHint:'Попробуйте готовый демо-аккаунт:',
+  errNoCrypto:'Для этого демо нужен Web Crypto (crypto.subtle). Откройте файл с локального веб-сервера или страницы https://.',
+  errUserRule:'Имя пользователя: 3–32 буквы, цифры или _',
+  errPassLen:'Пароль должен быть не короче 8 символов.',
+  errUserTaken:'Имя пользователя уже занято.',
+  errInvalid:'Неверное имя пользователя или пароль.',
+  errTooMany:'Слишком много попыток. Обновите страницу, чтобы сбросить демо.',
+  adminBadge:'Админ', roleAdmin:'Админ',
+  totalPortfolio:'Общая стоимость портфеля', signedInAs:'Вы вошли как', signOut:'Выйти',
+  withdraw:'Вывести',
+  adminPanel:'Панель администратора',
+  adminNote:'Видна только администраторам. Демо-аккаунты хранятся в памяти и сбрасываются при обновлении.',
+  coin:'Монета', available:'Доступно', destAddress:'Адрес получателя',
+  destAddressPh:'Вставьте адрес получателя', amount:'Сумма',
+  withdrawBtn:'Вывести', cancel:'Отмена', submitting:'Отправка…',
+  minFee:'Минимальный вывод {min} {sym}. Сетевой сбор {fee} {sym}, удерживается с баланса (сумма + сбор).',
+  errAddress:'Введите корректный адрес {sym}.',
+  errBtcAddress:'Это не корректный адрес Bitcoin.',
+  errAmount:'Введите сумму.',
+  errBelowMin:'Ниже минимального вывода {min} {sym}.',
+  errInsufficient:'Недостаточно {sym}. Нужно {total} (сумма + сбор), а у вас {have}.',
+  yourAssets:'Ваши активы',
+  cardDeposit:'1. Депозит картой', depositAmount:'Сумма депозита (USD)',
+  cardNumber:'Номер карты', expiry:'Срок действия (ММ/ГГ)', cvv:'CVV',
+  cardNote:'Только демо: ничего не отправляется и не сохраняется. Попробуйте 4242 4242 4242 4242, любую будущую дату, любой CVV.',
+  loadFunds:'Загрузить средства', processing:'Обработка…',
+  errPosAmount:'Введите положительную сумму.', errCardInvalid:'Неверный номер карты.',
+  errExpiry:'Срок действия должен быть ММ/ГГ.', errExpired:'Карта просрочена.',
+  errCvv:'CVV должен состоять из 3 или 4 цифр.',
+  p2pTransfer:'2. P2P-перевод', recipient:'Адрес кошелька получателя',
+  sendTransfer:'Отправить перевод', routing:'Маршрутизация…',
+  errAddrAmt:'Введите адрес и положительную сумму.',
+  errInsuffBal:'Недостаточно {sym}.',
+  ledgerHistory:'История операций', noTx:'Пока нет транзакций.', settled:'Исполнено',
+  txCardDeposit:'Депозит картой', txP2P:'P2P-перевод', txWithdrawal:'Вывод', fee:'сбор',
+  tabCrypto:'Крипта', tabBank:'Банк',
+  country:'Страна', selectCountry:'Выберите страну…',
+  accountHolder:'Имя владельца счёта', bankName:'Название банка',
+  accountNumber:'Номер счёта', iban:'IBAN', swift:'Код SWIFT / BIC',
+  bankMin:'Минимальный банковский вывод {min} USD. Комиссия {fee} USD, удерживается с баланса USD.',
+  bankNote:'Только демо: ничего не отправляется. Банковские данные не сохраняются.',
+  errCountry:'Выберите страну.',
+  errHolder:'Введите имя владельца счёта.',
+  errBankName:'Введите название банка.',
+  errAccount:'Введите корректный номер счёта (8–34 цифры).',
+  errIban:'Введите корректный IBAN (15–34 символа).',
+  errSwift:'Введите корректный SWIFT/BIC (8 или 11 символов).',
+  errBankAmount:'Введите положительную сумму.',
+  errBankBelowMin:'Ниже минимального банковского вывода {min} USD.',
+  errBankInsufficient:'Недостаточно USD. Нужно {total} (сумма + комиссия), а у вас {have}.',
+  txBankWithdrawal:'Банковский вывод',
+  footer:'Только предпросмотр: серверные вызовы (Stripe + реестр) имитируются на этой странице. Только демо: реальные средства не двигаются. Цены 13 монет — с Crypto.com Exchange, снимок от 2 окт 2026 02:51 UTC (не обновляется автоматически). * = нет в этом источнике: BNB и TRX из более раннего публичного снимка, TON — примерное значение. Балансы — примерные значения.'
+}
+};
+let lang = 'en';
+const t = (k, v) => {
+  let s = (T[lang] && T[lang][k]) || T.en[k] || k;
+  if(v) for(const kk in v) s = s.split('{'+kk+'}').join(v[kk]);
+  return s;
+};
+function refreshCountryOptions(){
+  const prev = $('bCountry').value;
+  $('bCountry').innerHTML = '<option value="">' + t('selectCountry') + '</option>'
+    + COUNTRIES.map(([c,n]) => `<option value="${c}">${n}</option>`).join('');
+  $('bCountry').value = prev;
+}
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  refreshCountryOptions();
+  bankAcctLabel();
+  bankHint();
+  render();
+}
+const langSels = document.querySelectorAll('.langsel');
+function setLang(l){
+  lang = T[l] ? l : 'en';
+  langSels.forEach(s => { s.value = lang; });
+  $('ge').textContent = '';
+  applyLang();
+}
+langSels.forEach(s => s.addEventListener('change', e => setLang(e.target.value)));
+
+/* ---------- data ---------- */
+const COINS = [
+ ['USD','US Dollar',1,'#16a34a',3652775.78],['BTC','Bitcoin',85074.41,'#f7931a',0.0215],['ETH','Ethereum',2720.03,'#627eea',0.85],
+ ['USDT','Tether',0.9996,'#26a17b',500],['USDC','USD Coin',1,'#2775ca',250],['BNB','BNB',770.7,'#d4a017',2.4],
+ ['SOL','Solana',120.11,'#9945ff',12],['XRP','XRP',1.5016,'#23292f',800],['ADA','Cardano',0.2487,'#0033ad',1500],
+ ['DOGE','Dogecoin',0.09419,'#c2a633',5000],['TRX','TRON',0.333,'#eb0029',3000],['LTC','Litecoin',68.95,'#345d9d',6],
+ ['DOT','Polkadot',1.194,'#e6007a',90],['AVAX','Avalanche',11.02,'#e84142',20],['LINK','Chainlink',14.45,'#2a5ada',45],
+ ['SHIB','Shiba Inu',5.8e-06,'#e4590e',40000000],['TON','Toncoin',6,'#0098ea',100],['XLM','Stellar',0.2201,'#14b6e7',2000]
+].map(([sym,name,price,color,bal])=>({sym,name,price,color,bal,sample:['BNB','TRX','TON'].includes(sym)}));
+const by = Object.fromEntries(COINS.map(c=>[c.sym,c]));
+let sel = 'BTC'; const log = [];
+const $ = id => document.getElementById(id);
+const hash = () => '0x' + Array.from({length:40}, () => Math.floor(Math.random()*16).toString(16)).join('');
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const usd = n => '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const qty = n => {
+  if(!isFinite(n)) return '0';
+  const a = Math.abs(n);
+  if(a === 0) return '0';
+  if(a >= 1) return n.toLocaleString(undefined,{maximumFractionDigits:2});
+  return n.toLocaleString(undefined,{maximumSignificantDigits:6});
+};
+const priceText = c => (c.price < 0.01 ? c.price.toFixed(6) : c.price.toLocaleString(undefined,{maximumFractionDigits:c.price<10?4:2})) + (c.sample ? ' *' : '');
+
+function pushLog(tx){ log.unshift(tx); $('live').textContent = tx.type + ' ' + tx.amt + ', ' + t('settled'); }
+
+function render(){
+  $('bal').textContent = usd(COINS.reduce((a,c)=>a+c.bal*c.price,0));
+  $('hold').innerHTML = COINS.map(c=>`<div class="coin ${c.sym===sel?'sel':''}" data-s="${c.sym}"
+    role="button" tabindex="0" aria-pressed="${c.sym===sel}"
+    aria-label="${c.sym}, ${c.name}. ${qty(c.bal)} ${c.sym}, ${usd(c.bal*c.price)}.">
+    <b><span class="dot" aria-hidden="true" style="background:${c.color}">${c.sym[0]}</span>${c.sym}</b>${qty(c.bal)}<br><span>${usd(c.bal*c.price)}</span><br><span aria-hidden="true">@ ${priceText(c)}</span></div>`).join('');
+  document.querySelectorAll('.coin').forEach(el=>{
+    const pick = () => { sel = el.dataset.s; render(); };
+    el.onclick = pick;
+    el.onkeydown = e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); pick(); } };
+  });
+  $('coin').value = sel; $('sym').textContent = sel;
+  $('avail').textContent = t('available') + ': ' + qty(by[sel].bal) + ' ' + sel;
+  $('log').innerHTML = log.length ? log.map(x=>`<div class="tx"><div><strong>${x.type}</strong><div class="hash">${x.id}</div></div>
+    <div><span style="font-weight:700;color:${x.amt[0]==='+'?'var(--ok)':'var(--bad)'};margin-right:10px">${x.amt}</span><span class="badge">${t('settled')}</span></div></div>`).join('')
+    : '<p style="color:var(--muted);font-size:14px;margin:0">' + t('noTx') + '</p>';
+  if(!$('wdp').hidden) wdHint();
+}
+$('coin').innerHTML = COINS.map(c=>`<option value="${c.sym}">${c.sym} - ${c.name}</option>`).join('');
+$('coin').onchange = e => { sel = e.target.value; render(); };
+
+const digits = v => v.replace(/\D/g,'');
+function maskInput(el, format, maxDigits){
+  el.addEventListener('input', () => {
+    const digitsBefore = digits(el.value.slice(0, el.selectionStart)).length;
+    el.value = format(digits(el.value).slice(0, maxDigits));
+    let pos = 0, seen = 0;
+    while(pos < el.value.length && seen < digitsBefore){ if(/\d/.test(el.value[pos])) seen++; pos++; }
+    el.setSelectionRange(pos, pos);
+  });
+}
+maskInput($('cn'), d => d.replace(/(.{4})/g,'$1 ').trim(), 19);
+maskInput($('ex'), d => d.length > 2 ? d.slice(0,2) + '/' + d.slice(2) : d, 4);
+maskInput($('cv'), d => d, 4);
+const luhn = n => { let sum=0, alt=false; for(let i=n.length-1;i>=0;i--){ let d=+n[i]; if(alt){d*=2; if(d>9)d-=9;} sum+=d; alt=!alt; } return sum%10===0; };
+
+$('b1').onclick = async () => {
+  const v = parseFloat($('dep').value), num = digits($('cn').value), ex = $('ex').value, cv = $('cv').value;
+  const err = m => { $('e1').textContent = m; };
+  err('');
+  if(!(v > 0)) return err(t('errPosAmount'));
+  if(num.length < 13 || !luhn(num)) return err(t('errCardInvalid'));
+  const m = ex.match(/^(\d{2})\/(\d{2})$/);
+  if(!m || +m[1] < 1 || +m[1] > 12) return err(t('errExpiry'));
+  const now = new Date(), exp = new Date(2000 + +m[2], +m[1], 1);
+  if(exp <= now) return err(t('errExpired'));
+  if(cv.length < 3) return err(t('errCvv'));
+  $('b1').disabled = true; $('b1').textContent = t('processing');
+  await wait(700);
+  by.USD.bal += v; pushLog({id:hash(), type:t('txCardDeposit') + ' •••• ' + num.slice(-4), amt:'+' + usd(v)});
+  ['dep','cn','ex','cv'].forEach(id => $(id).value = '');
+  $('b1').disabled=false; $('b1').textContent = t('loadFunds'); render();
+};
+
+$('b2').onclick = async () => {
+  const v = parseFloat($('amt').value), to = $('to').value.trim(), c = by[sel]; $('e2').textContent = '';
+  if(!to || !(v > 0)) { $('e2').textContent = t('errAddrAmt'); return; }
+  if(v > c.bal) { $('e2').textContent = t('errInsuffBal', {sym: sel}); return; }
+  $('b2').disabled = true; $('b2').textContent = t('routing');
+  await wait(400);
+  c.bal -= v; pushLog({id:hash(), type:t('txP2P') + ' (' + sel + ')', amt:'-' + qty(v) + ' ' + sel});
+  $('amt').value=''; $('to').value=''; $('b2').disabled=false; $('b2').textContent = t('sendTransfer'); render();
+};
+
+/* ---------- demo login gate (client-side only: NOT real security) ---------- */
+const subtleOK = !!(window.crypto && window.crypto.subtle);
+const accounts = new Map([['sam',{salt:Uint8Array.from('d127302ce183239cba4318309cd5eac1'.match(/../g),x=>parseInt(x,16)),hash:'7fd777b90865ecdd6b6f174340dd56670631f4f268776bc459d423f4e813cbae',name:'sam'}]]);
+const DEMO_LOGINS = { samy: { pw: '123456789', name: 'Samy' } };
+const ADMINS = new Set(['sam']);
+const isAdmin = k => ADMINS.has(k);
+let tries = 0;
+const te = new TextEncoder();
+async function pbk(pw, salt){
+  const k = await crypto.subtle.importKey('raw', te.encode(pw), 'PBKDF2', false, ['deriveBits']);
+  const b = await crypto.subtle.deriveBits({name:'PBKDF2', salt, iterations:150000, hash:'SHA-256'}, k, 256);
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+function renderAdmin(){
+  const rows = [];
+  for(const [k, a] of accounts) rows.push({k, name:a.name, admin:isAdmin(k)});
+  for(const [k, d] of Object.entries(DEMO_LOGINS)) if(!accounts.has(k)) rows.push({k, name:d.name, admin:isAdmin(k)});
+  rows.sort((a,b)=> a.name.localeCompare(b.name));
+  $('admList').innerHTML = rows.map(r=>`<div class="adm"><span><strong>${r.name}</strong> <span style="color:var(--muted)">(${r.k})</span></span>${r.admin?'<span class="role">'+t('roleAdmin')+'</span>':''}</div>`).join('')
+    || '<p style="color:var(--muted);font-size:14px;margin:0">—</p>';
+}
+
+function enter(u, k){
+  $('gate').hidden = true; $('app').hidden = false;
+  $('who').textContent = u; $('gp').value=''; $('ge').textContent='';
+  const admin = isAdmin(k);
+  $('roleBadge').hidden = !admin;
+  $('adminp').hidden = !admin;
+  if(admin) renderAdmin();
+  $('wdp').hidden = true;
+  render();
+}
+function showGate(){ $('app').hidden = true; $('gate').hidden = false; $('gp').value=''; $('ge').textContent=''; }
+$('out').onclick = e => { e.preventDefault(); showGate(); };
+
+function readCreds(){
+  const u = $('gu').value.trim();
+  return {u, p: $('gp').value, k: u.toLowerCase()};
+}
+
+$('gb').onclick = async () => {
+  const {u, p, k} = readCreds(), err = m => { $('ge').textContent = m; };
+  err('');
+  if(!subtleOK) return err(t('errNoCrypto'));
+  const d = DEMO_LOGINS[k];
+  if(d && d.pw === p) { tries = 0; return enter(d.name, k); }
+  if(!/^[A-Za-z0-9_]{3,32}$/.test(u)) return err(t('errUserRule'));
+  if(tries >= 5) return err(t('errTooMany'));
+  const a = accounts.get(k);
+  const h = await pbk(p, a ? a.salt : new Uint8Array(16));
+  if(!a || h !== a.hash){ tries++; return err(t('errInvalid')); }
+  tries = 0; enter(a.name, k);
+};
+
+$('gc').onclick = async () => {
+  const {u, p, k} = readCreds(), err = m => { $('ge').textContent = m; };
+  err('');
+  if(!subtleOK) return err(t('errNoCrypto'));
+  if(!/^[A-Za-z0-9_]{3,32}$/.test(u)) return err(t('errUserRule'));
+  if(p.length < 8) return err(t('errPassLen'));
+  if(accounts.has(k) || DEMO_LOGINS[k]) return err(t('errUserTaken'));
+  $('gc').disabled = true; $('gc').textContent = t('creating');
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  accounts.set(k, {salt, hash: await pbk(p, salt), name:u});
+  $('gc').disabled = false; $('gc').textContent = t('createAccount');
+  enter(u, k);
+};
+
+$('gp').addEventListener('keydown', e => { if(e.key==='Enter') $('gb').click(); });
+
+/* ---------- crypto withdraw ---------- */
+const WD = { BTC:{min:0.0005,fee:0.0001}, ETH:{min:0.005,fee:0.0005}, USD:{min:10,fee:1} };
+function wdRule(sym){
+  if(WD[sym]) return WD[sym];
+  const p = by[sym].price;
+  const r = x => +(x/p).toPrecision(2);
+  return {min:r(10), fee:r(1)};
+}
+const B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+function bech32ok(a){
+  a = a.toLowerCase(); const i = a.lastIndexOf('1');
+  if(i < 1 || a.length < 14 || a.length > 90) return false;
+  const hrp = a.slice(0,i), d = [...a.slice(i+1)].map(c => B32.indexOf(c));
+  if(d.includes(-1)) return false;
+  const G = [0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3];
+  let c = 1;
+  for(const v of [...[...hrp].map(x=>x.charCodeAt(0)>>5),0,...[...hrp].map(x=>x.charCodeAt(0)&31),...d]){
+    const b = c>>>25; c = ((c&0x1ffffff)<<5)^v;
+    for(let k=0;k<5;k++) if((b>>k)&1) c ^= G[k];
+  }
+  return c===1 || c===0x2bc830a3;
+}
+function addrOk(sym, a){
+  if(sym==='BTC') return bech32ok(a) && /^bc1/i.test(a) || /^[13][1-9A-HJ-NP-Za-km-z]{25,34}$/.test(a);
+  if(sym==='USD') return false;
+  return /^[A-Za-z0-9:_\-.]{20,100}$/.test(a);
+}
+$('wc').innerHTML = COINS.filter(c=>c.sym!=='USD').map(c=>`<option value="${c.sym}">${c.sym} - ${c.name}</option>`).join('');
+$('wc').value = 'BTC';
+function wdHint(){
+  const sym = $('wc').value, r = wdRule(sym), c = by[sym];
+  $('ws').textContent = sym;
+  $('wh').textContent = t('available') + ': ' + qty(c.bal) + ' ' + sym;
+  $('wt').textContent = t('minFee', {min: qty(r.min), fee: qty(r.fee), sym});
+}
+$('wc').onchange = wdHint;
+$('wd').onclick = () => {
+  $('wdp').hidden = !$('wdp').hidden;
+  $('we').textContent = ''; $('be').textContent = '';
+  $('wCrypto').hidden = false; $('wBank').hidden = true;
+  $('tabCrypto').classList.add('active'); $('tabBank').classList.remove('active');
+  wdHint();
+};
+$('wx').onclick = () => { $('wdp').hidden = true; };
+$('wb').onclick = async () => {
+  const sym = $('wc').value, r = wdRule(sym), c = by[sym], a = $('wa').value.trim(), v = parseFloat($('wm').value);
+  const err = m => { $('we').textContent = m; }; err('');
+  if(!addrOk(sym, a)) return err(sym==='BTC' ? t('errBtcAddress') : t('errAddress', {sym}));
+  if(!(v > 0)) return err(t('errAmount'));
+  if(v < r.min) return err(t('errBelowMin', {min: qty(r.min), sym}));
+  const total = v + r.fee;
+  if(total > c.bal + 1e-12) return err(t('errInsufficient', {sym, total: qty(total), have: qty(c.bal)}));
+  $('wb').disabled = true; $('wb').textContent = t('submitting');
+  await wait(600);
+  c.bal -= total;
+  pushLog({id:hash(), type:t('txWithdrawal') + ' (' + sym + ') · ' + t('fee') + ' ' + qty(r.fee), amt:'-' + qty(total) + ' ' + sym});
+  $('wa').value = ''; $('wm').value = ''; $('wb').disabled = false; $('wb').textContent = t('withdrawBtn'); $('wdp').hidden = true; render();
+};
+
+/* ---------- bank withdrawal ---------- */
+const COUNTRIES = [
+  ['US','United States'],['GB','United Kingdom'],['CA','Canada'],['AU','Australia'],['NZ','New Zealand'],
+  ['DE','Germany'],['FR','France'],['ES','Spain'],['IT','Italy'],['NL','Netherlands'],
+  ['BE','Belgium'],['CH','Switzerland'],['AT','Austria'],['SE','Sweden'],['NO','Norway'],
+  ['DK','Denmark'],['FI','Finland'],['IE','Ireland'],['PT','Portugal'],['PL','Poland'],
+  ['GR','Greece'],['CZ','Czech Republic'],['RO','Romania'],['HU','Hungary'],['TR','Turkey'],
+  ['RU','Russia'],['UA','Ukraine'],['CN','China'],['JP','Japan'],['KR','South Korea'],
+  ['IN','India'],['ID','Indonesia'],['MY','Malaysia'],['SG','Singapore'],['TH','Thailand'],
+  ['VN','Vietnam'],['PH','Philippines'],['PK','Pakistan'],['BD','Bangladesh'],['SA','Saudi Arabia'],
+  ['AE','United Arab Emirates'],['QA','Qatar'],['KW','Kuwait'],['BH','Bahrain'],['OM','Oman'],
+  ['IL','Israel'],['EG','Egypt'],['MA','Morocco'],['TN','Tunisia'],['NG','Nigeria'],
+  ['KE','Kenya'],['ZA','South Africa'],['GH','Ghana'],['TZ','Tanzania'],['UG','Uganda'],
+  ['BR','Brazil'],['AR','Argentina'],['MX','Mexico'],['CL','Chile'],['CO','Colombia'],
+  ['PE','Peru'],['UY','Uruguay'],['HK','Hong Kong'],['TW','Taiwan'],['MO','Macau']
+];
+const IBAN_COUNTRIES = new Set(['GB','DE','FR','ES','IT','NL','BE','CH','AT','IE','PT','PL','GR','CZ','RO','HU','FI','NO','DK','SE','TR','UA','SA','AE','IL','EG','TN','BH','KW','QA']);
+const BANK_MIN = 10;
+const BANK_FEE = 1;
+
+function bankAcctLabel(){
+  const c = $('bCountry').value;
+  $('bAcctLabel').textContent = IBAN_COUNTRIES.has(c) ? t('iban') : t('accountNumber');
+  $('bAcct').placeholder = IBAN_COUNTRIES.has(c) ? 'DE89 3704 0044 0532 0130 00' : '0123456789';
+}
+function bankHint(){
+  $('bHint').textContent = t('bankMin', {min: BANK_MIN.toFixed(2), fee: BANK_FEE.toFixed(2)});
+}
+$('bCountry').addEventListener('change', bankAcctLabel);
+$('tabCrypto').onclick = () => {
+  $('wCrypto').hidden = false; $('wBank').hidden = true;
+  $('tabCrypto').classList.add('active'); $('tabBank').classList.remove('active');
+};
+$('tabBank').onclick = () => {
+  $('wCrypto').hidden = true; $('wBank').hidden = false;
+  $('tabCrypto').classList.remove('active'); $('tabBank').classList.add('active');
+  bankHint(); bankAcctLabel();
+};
+$('bx').onclick = () => { $('wdp').hidden = true; };
+$('bb').onclick = async () => {
+  const country = $('bCountry').value, holder = $('bHolder').value.trim(), bank = $('bBank').value.trim(),
+        acct = $('bAcct').value.replace(/\s/g,'').toUpperCase(), swift = $('bSwift').value.trim().toUpperCase(),
+        v = parseFloat($('bAmt').value);
+  const err = m => { $('be').textContent = m; }; err('');
+  if(!country) return err(t('errCountry'));
+  if(holder.length < 2) return err(t('errHolder'));
+  if(bank.length < 2) return err(t('errBankName'));
+  if(IBAN_COUNTRIES.has(country)){
+    if(!/^[A-Z]{2}[0-9A-Z]{13,32}$/.test(acct)) return err(t('errIban'));
+  } else {
+    if(!/^\d{8,34}$/.test(acct)) return err(t('errAccount'));
+  }
+  if(!/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(swift)) return err(t('errSwift'));
+  if(!(v > 0)) return err(t('errBankAmount'));
+  if(v < BANK_MIN) return err(t('errBankBelowMin', {min: BANK_MIN.toFixed(2)}));
+  const total = v + BANK_FEE;
+  if(total > by.USD.bal + 1e-12) return err(t('errBankInsufficient', {total: usd(total), have: usd(by.USD.bal)}));
+  $('bb').disabled = true; $('bb').textContent = t('submitting');
+  await wait(700);
+  by.USD.bal -= total;
+  pushLog({id:hash(), type:t('txBankWithdrawal') + ' · ' + bank + ' · ' + country, amt:'-' + usd(total)});
+  ['bHolder','bBank','bAcct','bSwift','bAmt'].forEach(id => $(id).value = '');
+  $('bCountry').value = '';
+  $('bb').disabled = false; $('bb').textContent = t('withdrawBtn'); $('wdp').hidden = true; render();
+};
+
+/* ---------- boot ---------- */
+if(!subtleOK) $('gb').disabled = true;
+setLang('en');
+</script>
+</body>
+</html>
